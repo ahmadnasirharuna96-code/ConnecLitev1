@@ -28,6 +28,21 @@ ENVIRONMENT = env("DJANGO_ENVIRONMENT", default="development")
 
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+# Render (and most PaaS providers) terminate TLS at a proxy and forward
+# plain HTTP internally with X-Forwarded-Proto — without this, Django's
+# request.is_secure() incorrectly returns False, which can break CSRF
+# validation (e.g. /admin/ login) due to an http/https scheme mismatch.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[f"https://{host}" for host in ALLOWED_HOSTS if host not in ("localhost", "127.0.0.1")],
+)
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 # ------------------------------------------------------------------
 # Applications
 # ------------------------------------------------------------------
