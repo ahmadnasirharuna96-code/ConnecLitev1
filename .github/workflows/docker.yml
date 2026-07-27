@@ -1,0 +1,74 @@
+# Builds the backend and frontend Docker images on every push to main.
+#
+# NOTE ON REGISTRY: this workflow does NOT push to any specific registry
+# by default, and does not assume a "hackathon-provided" registry —
+# no such registry URL, namespace, or credential scheme was verifiable
+# from the project brief. To enable pushing, set these repository
+# secrets and this workflow will push automatically:
+#   REGISTRY_HOST      e.g. ghcr.io or docker.io
+#   REGISTRY_USERNAME
+#   REGISTRY_PASSWORD
+# Until those secrets exist, the workflow only builds the images
+# (a correctness check), which is safe to run with no configuration.
+
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: connectlite-backend:ci
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build frontend image (production/nginx)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: false
+          tags: connectlite-frontend:ci
+
+  push:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    # Only attempt a push if registry secrets have actually been configured.
+    if: ${{ github.ref == 'refs/heads/main' && vars.ENABLE_REGISTRY_PUSH == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ secrets.REGISTRY_HOST }}/connectlite-backend:latest
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          tags: ${{ secrets.REGISTRY_HOST }}/connectlite-frontend:latest

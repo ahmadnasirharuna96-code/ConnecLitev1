@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: connectlite
+      POSTGRES_USER: connectlite
+      POSTGRES_PASSWORD: connectlite
+    ports:
+      - "5432:5432"
+    volumes:
+      - connectlite_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U connectlite"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Inside the Docker network, "localhost" means the container itself —
+      # override whatever DB_HOST/DATABASE_URL is in .env with the compose
+      # service name so the backend actually reaches the db container.
+      DB_HOST: db
+      DATABASE_URL: postgres://connectlite:connectlite@db:5432/connectlite
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      # This one is correct as "localhost" on purpose: VITE_API_BASE_URL is
+      # read by the browser (not the frontend container), and the browser
+      # reaches the backend through its published host port.
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+    depends_on:
+      - backend
+
+volumes:
+  connectlite_pgdata:

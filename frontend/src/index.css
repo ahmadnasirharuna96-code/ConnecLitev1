@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #0f1b2d;
+  color: #f5f3ee;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+/* Signature "signal bars" motif — used across loading states, empty states,
+   and the landing hero to visually tie the smartphone <-> feature-phone
+   connectivity idea together throughout the app. */
+.signal-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+}
+.signal-bars span {
+  width: 4px;
+  background: currentColor;
+  border-radius: 2px;
+  display: inline-block;
+}
+.signal-bars span:nth-child(1) { height: 30%; }
+.signal-bars span:nth-child(2) { height: 55%; }
+.signal-bars span:nth-child(3) { height: 75%; }
+.signal-bars span:nth-child(4) { height: 100%; }
